@@ -13,7 +13,7 @@ arrhenius_stats <- function(path) {
   
   # Read in csv 
   df <- read.csv(path)
-  print('Head of data:')
+  cat('Head of data:')
   print(head(df))
   
   # Drop NA rows
@@ -24,9 +24,10 @@ arrhenius_stats <- function(path) {
   
   # Get statistics 
   for(j in list(5,10,15)){
-    
+
+    cat(sprintf('\n\nGetting stats for %s day range', j))    
     df <- calculate_stats(df, j)
-    print('\nHead of data with stats added:')
+    cat('\nHead of data with stats added:')
     print(head(df))
     
     # Save df as csv
@@ -89,10 +90,37 @@ calculate_stats <- function(df, dayrange) {
       inrange <- site_df[site_df$DATE >= start_date &
                       site_df$DATE <= end_date, ]
      
-      # Skip linear regression if there's only one sample
+      # Skip linear regression if there's only one sample or if the measurement is missing
       if (nrow(inrange)==1){
         
         cat(sprintf('\n Row %s being excluded, only one sample', i))
+        GPP_stats <- rep(NA, 5)
+        ER_stats <- rep(NA, 5)
+        
+      } else if (is.na(df[i,'InvGPP'])) { 
+        
+        GPP_stats <- rep(NA, 5)
+        
+        lmInvER <- lm(InvER~STANDTEMP, data = inrange)
+        ER_stats <- c(summary(lmInvER)$coefficients["STANDTEMP", "Estimate"],
+                      summary(lmInvER)$coefficients["(Intercept)", "Estimate"],
+                      summary(lmInvER)$fstatistic["value"],
+                      summary(lmInvER)$fstatistic["numdf"],
+                      suppressWarnings(anova(lmInvER)$'Pr(>F)'[1]))
+      
+      } else if (is.na(df[i,'InvER'])) {
+        
+        lmInvGPP <- lm(InvGPP~STANDTEMP, data = inrange)
+        GPP_stats <- c(summary(lmInvGPP)$coefficients["STANDTEMP", "Estimate"],
+                       summary(lmInvGPP)$coefficients["(Intercept)", "Estimate"],
+                       summary(lmInvGPP)$fstatistic["value"],
+                       summary(lmInvGPP)$fstatistic["numdf"],
+                       suppressWarnings(anova(lmInvGPP)$'Pr(>F)'[1]))
+        
+        ER_stats <- rep(NA, 5)
+        
+      } else if (is.na(df[i,'InvGPP']) & is.na(df[i,'InvER'])) {
+        
         GPP_stats <- rep(NA, 5)
         ER_stats <- rep(NA, 5)
         
@@ -106,13 +134,13 @@ calculate_stats <- function(df, dayrange) {
                        summary(lmInvGPP)$coefficients["(Intercept)", "Estimate"],
                        summary(lmInvGPP)$fstatistic["value"],
                        summary(lmInvGPP)$fstatistic["numdf"],
-                       anova(lmInvGPP)$'Pr(>F)'[1])
+                       suppressWarnings(anova(lmInvGPP)$'Pr(>F)'[1]))
         
         ER_stats <- c(summary(lmInvER)$coefficients["STANDTEMP", "Estimate"],
                       summary(lmInvER)$coefficients["(Intercept)", "Estimate"],
                       summary(lmInvER)$fstatistic["value"],
                       summary(lmInvER)$fstatistic["numdf"],
-                      anova(lmInvER)$'Pr(>F)'[1])
+                      suppressWarnings(anova(lmInvER)$'Pr(>F)'[1]))
       }
       
       # Add stats to matrix
