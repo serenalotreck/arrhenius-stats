@@ -16,9 +16,6 @@ arrhenius_stats <- function(path) {
   cat('Head of data:')
   print(head(df))
   
-  # Drop NA rows
-  df <- na.omit(df)
-  
   # Formate DATE column as date objects
   df$DATE <- as.Date(df$DATE, format = "%m/%d/%y")
   
@@ -26,17 +23,24 @@ arrhenius_stats <- function(path) {
   for(j in list(5,10,15)){
 
     cat(sprintf('\n\nGetting stats for %s day range', j))    
-    df <- calculate_stats(df, j)
+    
+    # Get stats
+    df_copy <- data.frame(df) # Make a copy, otherwise naming gets mega messed up
+    df_w_stats <- calculate_stats(df_copy, j)
+    
+    # Add dayrange suffix on column headers
+    colnames(df_w_stats)[6:15] <- paste(colnames(df_w_stats)[6:15], j, "DAY_RANGE", sep = '_')
+    
     cat('\nHead of data with stats added:')
-    print(head(df))
+    print(head(df_w_stats))
     
     # Save df as csv
-    save_name <- paste(substr(path, 1, nchar(path)-4), j, 'DAY_RANGE', 
-                       'arrhenius_data.csv', sep = '_')
-    write.csv(df, save_name, row.names = FALSE)
+    save_name <- paste(substr(path, 1, nchar(path)-4), j, "DAY_RANGE", 'arrhenius_data.csv', sep = '_')
+    write.csv(df_w_stats, save_name, row.names = FALSE)
     
   }
-    
+  
+  
   print('Done!')
 }
 
@@ -53,9 +57,9 @@ arrhenius_stats <- function(path) {
 #' @return df, DataFrame with new data appended 
 #' 
 #' @examples 
-#' calculate_stats(df)
+#' calculate_stats(df, dayrange)
 calculate_stats <- function(df, dayrange) {
-  
+ 
   # Get the number of rows in order to preallocate a matrix for storing data
   nrows = nrow(df)
   
@@ -83,70 +87,49 @@ calculate_stats <- function(df, dayrange) {
     for(i in rownums){
        
       # Get start and end dates for the range 
-      start_date = df[i,"DATE"] - dayrange
-      end_date = df[i,"DATE"] + dayrange
+      target_date <- df[i,"DATE"]
+      start_date = target_date - dayrange
+      end_date = target_date + dayrange
       
       # Get the data in the date range
       inrange <- site_df[site_df$DATE >= start_date &
                       site_df$DATE <= end_date, ]
-     
-      # Skip linear regression if there's only one sample or if the measurement is missing
-      if (nrow(inrange)==1){
-        
-        cat(sprintf('\n Row %s being excluded, only one sample', i))
-        GPP_stats <- rep(NA, 5)
-        ER_stats <- rep(NA, 5)
-        
-      } else if (is.na(df[i,'InvGPP'])) { 
-        
-        GPP_stats <- rep(NA, 5)
-        
-        lmInvER <- lm(InvER~STANDTEMP, data = inrange)
-        ER_stats <- c(summary(lmInvER)$coefficients["STANDTEMP", "Estimate"],
-                      summary(lmInvER)$coefficients["(Intercept)", "Estimate"],
-                      summary(lmInvER)$fstatistic["value"],
-                      summary(lmInvER)$fstatistic["numdf"],
-                      suppressWarnings(anova(lmInvER)$'Pr(>F)'[1]))
+    
+      # Split by datatype (GPP vs ER) and drop NA rows
+      inrange_GPP <- na.omit(inrange[,1:4]) # Will drop a row if it has a missing date, etc
+      inrange_ER <- na.omit(inrange[,c(1,2,3,5)])
       
-      } else if (is.na(df[i,'InvER'])) {
+      # Calculate linear regressions for each
+      rowstats <- c()
+      for(frame in list(inrange_GPP, inrange_ER)){
         
-        lmInvGPP <- lm(InvGPP~STANDTEMP, data = inrange)
-        GPP_stats <- c(summary(lmInvGPP)$coefficients["STANDTEMP", "Estimate"],
-                       summary(lmInvGPP)$coefficients["(Intercept)", "Estimate"],
-                       summary(lmInvGPP)$fstatistic["value"],
-                       summary(lmInvGPP)$fstatistic["numdf"],
-                       suppressWarnings(anova(lmInvGPP)$'Pr(>F)'[1]))
-        
-        ER_stats <- rep(NA, 5)
-        
-      } else if (is.na(df[i,'InvGPP']) & is.na(df[i,'InvER'])) {
-        
-        GPP_stats <- rep(NA, 5)
-        ER_stats <- rep(NA, 5)
-        
-      } else {
-        # Calculate linear regressions 
-        lmInvGPP <- lm(InvGPP~STANDTEMP, data = inrange)
-        lmInvER <- lm(InvER~STANDTEMP, data = inrange)
-        
-        # Get statistics
-        GPP_stats <- c(summary(lmInvGPP)$coefficients["STANDTEMP", "Estimate"],
-                       summary(lmInvGPP)$coefficients["(Intercept)", "Estimate"],
-                       summary(lmInvGPP)$fstatistic["value"],
-                       summary(lmInvGPP)$fstatistic["numdf"],
-                       suppressWarnings(anova(lmInvGPP)$'Pr(>F)'[1]))
-        
-        ER_stats <- c(summary(lmInvER)$coefficients["STANDTEMP", "Estimate"],
-                      summary(lmInvER)$coefficients["(Intercept)", "Estimate"],
-                      summary(lmInvER)$fstatistic["value"],
-                      summary(lmInvER)$fstatistic["numdf"],
-                      suppressWarnings(anova(lmInvER)$'Pr(>F)'[1]))
+        # Skip if only one sample
+        if(!(target_date %in% frame[,"DATE"])){
+          
+          cat(sprintf(
+            '\nRow %s being excluded for dtype %s, target date missing data', i, colnames(frame)[4]))
+          rowstats <- append(rowstats, rep(NA, 5))
+          
+        } else if (nrow(frame)==1){
+          
+          cat(sprintf(
+            '\nRow %s being excluded for dtype %s, only one sample', i, colnames(frame)[4]))
+          rowstats <- append(rowstats, rep(NA, 5))
+          
+        } else {
+          
+          mylm <- lm(frame[,4] ~ frame[,3], data = frame)
+          add_to_stats <- c(summary(mylm)$coefficients["frame[, 3]", "Estimate"],
+                        summary(mylm)$coefficients["(Intercept)", "Estimate"],
+                        summary(mylm)$fstatistic["value"],
+                        summary(mylm)$fstatistic["numdf"],
+                        suppressWarnings(anova(mylm)$'Pr(>F)'[1]))
+          rowstats <- append(rowstats, add_to_stats)
+        }
       }
       
       # Add stats to matrix
-      stats[i, 1:5] <- GPP_stats
-      stats[i, 6:10] <- ER_stats
-      
+      stats[i, 1:10] <- rowstats
     }
   }
     
@@ -162,7 +145,8 @@ calculate_stats <- function(df, dayrange) {
 
 ## COMMENT out these lines to run the tests
 #path = "Shiu_lab/for-others/seth_temp_sensitivity/Final_Data_Serena.csv"
-#arrhenius_stats(path)
+path = "test_data.csv"
+arrhenius_stats(path)
 
 
 

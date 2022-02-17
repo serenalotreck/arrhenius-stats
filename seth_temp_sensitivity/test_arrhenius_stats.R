@@ -19,7 +19,7 @@ test_that('No NA or missing measurement, 5 days', {
   input <- data.frame(SITE, DATE, STANDTEMP, InvGPP, InvER)
   
   # Build the output matrix
-  # NOTE: Because of missing data, the outputs for rows 1-2 and 3-5 are the same,
+  # NOTE: Because of missing dates, the outputs for rows 1-2 and 3-5 are the same,
   # So I'm just going to reassign the same vectors for those rows
   row1_lm_GPP <- lm(InvGPP~STANDTEMP, data = input[1:2,])
   row1_lm_ER <- lm(InvER~STANDTEMP, data = input[1:2,])
@@ -233,4 +233,99 @@ test_that('Site IDs are different', {
   
   # Test
   expect_equal(calculate_stats(input, 5), output)
+})
+
+test_that('Missing InvGPP and ER in multiple rows', {
+  
+  # Build the input matrix
+  SITE <- c('id1', 'id1', 'id1', 'id1', 'id1')
+  DATE <- c('1/7/22', '1/8/22', '1/15/22', '1/17/22', '1/20/22')
+  DATE <- as.Date(DATE, format = "%m/%d/%y")
+  STANDTEMP <- c(-0.34, -0.70, -0.24, -0.42, 0.48)
+  InvGPP <- c(0.61, 0.48, NA, 0.57, NA)
+  InvER <- c(1.27, 0.67, NA, NA, 0.24)
+  input <- data.frame(SITE, DATE, STANDTEMP, InvGPP, InvER)
+  
+  # Build the output matrix
+  row1_lm_GPP <- lm(InvGPP~STANDTEMP, data = input[1:2,])
+  row1_lm_ER <- lm(InvER~STANDTEMP, data = input[1:2,])
+  row1_stats <- c(summary(row1_lm_GPP)$coefficients["STANDTEMP", "Estimate"],
+                  summary(row1_lm_GPP)$coefficients["(Intercept)", "Estimate"],
+                  summary(row1_lm_GPP)$fstatistic["value"],
+                  summary(row1_lm_GPP)$fstatistic["numdf"],
+                  suppressWarnings(anova(row1_lm_GPP)$'Pr(>F)'[1]),
+                  summary(row1_lm_ER)$coefficients["STANDTEMP", "Estimate"],
+                  summary(row1_lm_ER)$coefficients["(Intercept)", "Estimate"],
+                  summary(row1_lm_ER)$fstatistic["value"],
+                  summary(row1_lm_ER)$fstatistic["numdf"],
+                  suppressWarnings(anova(row1_lm_ER)$'Pr(>F)'[1])
+  )
+  row2_stats <- row1_stats
+  row3_stats <- rep(NA, 10)
+  row4_stats <- rep(NA, 10)
+  row5_stats <- rep(NA, 10)
+  
+  output <- as.data.frame(do.call(rbind, 
+                                  list(row1_stats, row2_stats, row3_stats, row4_stats, row5_stats)))
+  colnames(output) <- c("slope_InvGPP", "yint_InvGPP", "Fstatistic_InvGPP", 
+                        "dF_InvGPP", "p_InvGPP", 
+                        "slope_InvER", "yint_InvER", "Fstatistic_InvER", 
+                        "dF_InvER", "p_InvER")  
+  output <- cbind(input, output)
+  output$DATE <- as.Date(output$DATE, format = "%m/%d/%y")
+  
+  # Test
+  expect_equal(calculate_stats(input, 5), output)
+  
+})
+
+test_that('Missing InvGPP in multiple rows', {
+  
+  # Build the input matrix
+  SITE <- c('id1', 'id1', 'id1', 'id1', 'id1')
+  DATE <- c('1/7/22', '1/8/22', '1/15/22', '1/17/22', '1/20/22')
+  DATE <- as.Date(DATE, format = "%m/%d/%y")
+  STANDTEMP <- c(-0.34, -0.70, -0.24, -0.42, 0.48)
+  InvGPP <- c(0.61, 0.48, NA, 0.57, NA)
+  InvER <- c(1.27, 0.67, 0.53, NA, 0.24)
+  input <- data.frame(SITE, DATE, STANDTEMP, InvGPP, InvER)
+  
+  # Build the output matrix
+  row1_lm_GPP <- lm(InvGPP~STANDTEMP, data = input[1:2,])
+  row1_lm_ER <- lm(InvER~STANDTEMP, data = input[1:2,])
+  row1_stats <- c(summary(row1_lm_GPP)$coefficients["STANDTEMP", "Estimate"],
+                  summary(row1_lm_GPP)$coefficients["(Intercept)", "Estimate"],
+                  summary(row1_lm_GPP)$fstatistic["value"],
+                  summary(row1_lm_GPP)$fstatistic["numdf"],
+                  suppressWarnings(anova(row1_lm_GPP)$'Pr(>F)'[1]),
+                  summary(row1_lm_ER)$coefficients["STANDTEMP", "Estimate"],
+                  summary(row1_lm_ER)$coefficients["(Intercept)", "Estimate"],
+                  summary(row1_lm_ER)$fstatistic["value"],
+                  summary(row1_lm_ER)$fstatistic["numdf"],
+                  suppressWarnings(anova(row1_lm_ER)$'Pr(>F)'[1])
+  )
+  row2_stats <- row1_stats
+  row3_lm_ER <- lm(InvER~STANDTEMP, data = input[c(3,5),])
+  row3_stats <- c(NA, NA, NA, NA, NA,
+                  summary(row3_lm_ER)$coefficients["STANDTEMP", "Estimate"],
+                  summary(row3_lm_ER)$coefficients["(Intercept)", "Estimate"],
+                  summary(row3_lm_ER)$fstatistic["value"],
+                  summary(row3_lm_ER)$fstatistic["numdf"],
+                  suppressWarnings(anova(row1_lm_ER)$'Pr(>F)'[1])
+  )
+  row4_stats <- rep(NA, 10)
+  row5_stats <- row3_stats
+  
+  output <- as.data.frame(do.call(rbind, 
+                                  list(row1_stats, row2_stats, row3_stats, row4_stats, row5_stats)))
+  colnames(output) <- c("slope_InvGPP", "yint_InvGPP", "Fstatistic_InvGPP", 
+                        "dF_InvGPP", "p_InvGPP", 
+                        "slope_InvER", "yint_InvER", "Fstatistic_InvER", 
+                        "dF_InvER", "p_InvER")  
+  output <- cbind(input, output)
+  output$DATE <- as.Date(output$DATE, format = "%m/%d/%y")
+  
+  # Test
+  expect_equal(calculate_stats(input, 5), output)
+  
 })
