@@ -144,8 +144,7 @@ calculate_stats <- function(df, dayrange) {
 }
 
 ## COMMENT out these lines to run the tests
-#path = "Shiu_lab/for-others/seth_temp_sensitivity/Final_Data_Serena.csv"
-path = "test_data.csv"
+path = "Shiu_lab/for-others/seth_temp_sensitivity/Final_Data_Serena.csv"
 arrhenius_stats(path)
 
 
