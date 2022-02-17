@@ -329,3 +329,35 @@ test_that('Missing InvGPP in multiple rows', {
   expect_equal(calculate_stats(input, 5), output)
   
 })
+
+test_that('Temperatures all identical', {
+  
+  # Build the input matrix
+  SITE <- c('id1', 'id1', 'id1', 'id1', 'id1')
+  DATE <- c('1/7/22', '1/8/22', '1/15/22', '1/17/22', '1/20/22')
+  DATE <- as.Date(DATE, format = "%m/%d/%y")
+  STANDTEMP <- c(-0.34, -0.34, -0.34, -0.34, -0.34)
+  InvGPP <- c(0.61, 0.48, 0.69, 0.57, 1.28)
+  InvER <- c(1.27, 0.67, 0.55, 0.37, 0.24)
+  input <- data.frame(SITE, DATE, STANDTEMP, InvGPP, InvER)
+  
+  # Build the output matrix
+  row1_stats <- rep(NA, 10)
+  row2_stats <- row1_stats
+  row3_stats <- row2_stats
+  row4_stats <- row3_stats
+  row5_stats <- row4_stats
+  
+  output <- as.data.frame(do.call(rbind, 
+                                  list(row1_stats, row2_stats, row3_stats, row4_stats, row5_stats)))
+  colnames(output) <- c("slope_InvGPP", "yint_InvGPP", "Fstatistic_InvGPP", 
+                        "dF_InvGPP", "p_InvGPP", 
+                        "slope_InvER", "yint_InvER", "Fstatistic_InvER", 
+                        "dF_InvER", "p_InvER")
+  output <- cbind(input, output)
+  output$DATE <- as.Date(output$DATE, format = "%m/%d/%y")
+  
+  # Test
+  expect_equal(calculate_stats(input, 5), output)
+  
+})

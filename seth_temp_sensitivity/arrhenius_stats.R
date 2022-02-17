@@ -102,7 +102,7 @@ calculate_stats <- function(df, dayrange) {
       # Calculate linear regressions for each
       rowstats <- c()
       for(frame in list(inrange_GPP, inrange_ER)){
-        
+      
         # Skip if only one sample
         if(!(target_date %in% frame[,"DATE"])){
           
@@ -114,6 +114,12 @@ calculate_stats <- function(df, dayrange) {
           
           cat(sprintf(
             '\nRow %s being excluded for dtype %s, only one sample', i, colnames(frame)[4]))
+          rowstats <- append(rowstats, rep(NA, 5))
+          
+        } else if (length(unique(frame[,"STANDTEMP"]))==1) {
+          
+          cat(sprintf(
+            '\nRow %s being excluded for dtype %s, temperatures are all identical', i, colnames(frame)[4]))
           rowstats <- append(rowstats, rep(NA, 5))
           
         } else {

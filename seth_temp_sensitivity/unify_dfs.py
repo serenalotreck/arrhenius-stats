@@ -25,7 +25,7 @@ def main(dfs, outpath):
     df_final = reduce(lambda df1, df2: pd.merge(df1, df2, how='outer'), dfs)
 
     # Assert that they all have the same number of rows as the merged result
-    print('\nAsserting that no rows have been ddropped...')
+    print('\nAsserting that no rows have been dropped...')
     for df in dfs:
         assert df.shape[0] == df_final.shape[0], (
             "Rows have been dropped or added!")
