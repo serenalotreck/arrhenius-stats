@@ -21,3 +21,6 @@ Example usage:
 ```
 python unify_dfs.py <path to df 1> <path to df2> <path to df3> <save name, including path>
 ```
+
+### Testing suite
+`test_arrhenius_stats.R` contains the test suite for the `calculate_stats` function inside `arrhenius_stats.R`. There are some specifications about how to run the tests that are included in the comments at the top of the script. This script is also run from within RStudio.
