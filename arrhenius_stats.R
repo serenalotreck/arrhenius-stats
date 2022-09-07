@@ -28,9 +28,6 @@ arrhenius_stats <- function(path) {
     df_copy <- data.frame(df) # Make a copy, otherwise naming gets mega messed up
     df_w_stats <- calculate_stats(df_copy, j)
     
-    # Add dayrange suffix on column headers
-    colnames(df_w_stats)[6:15] <- paste(colnames(df_w_stats)[6:15], j, "DAY_RANGE", sep = '_')
-    
     cat('\nHead of data with stats added:')
     print(head(df_w_stats))
     
@@ -64,10 +61,10 @@ calculate_stats <- function(df, dayrange) {
   nrows = nrow(df)
   
   # Define statistic matrix column names 
-  stats_names <- c("slope_InvGPP", "yint_InvGPP", "Fstatistic_InvGPP", 
-                   "dF_InvGPP", "p_InvGPP", 
-                   "slope_InvER", "yint_InvER", "Fstatistic_InvER", 
-                   "dF_InvER", "p_InvER")
+  stats_names <- c("slope_LNGPP", "yint_LNGPP", "Fstatistic_LNGPP", 
+                   "dF_LNGPP", "p_LNGPP", 
+                   "slope_LNER", "yint_LNER", "Fstatistic_LNER", 
+                   "dF_LNER", "p_LNER")
  
   # Preallocate matrix 
   stats <- matrix(nrow=nrows, ncol=10)
@@ -96,8 +93,8 @@ calculate_stats <- function(df, dayrange) {
                       site_df$DATE <= end_date, ]
     
       # Split by datatype (GPP vs ER) and drop NA rows
-      inrange_GPP <- na.omit(inrange[,1:4]) # Will drop a row if it has a missing date, etc
-      inrange_ER <- na.omit(inrange[,c(1,2,3,5)])
+      inrange_GPP <- na.omit(inrange[, c("DATE", "STANDTEMP", "LNGPP")]) # Will drop a row if it has a missing date, etc
+      inrange_ER <- na.omit(inrange[,c("DATE", "STANDTEMP", "LNER")])
       
       # Calculate linear regressions for each
       rowstats <- c()
@@ -124,8 +121,8 @@ calculate_stats <- function(df, dayrange) {
           
         } else {
           
-          mylm <- lm(frame[,4] ~ frame[,3], data = frame)
-          add_to_stats <- c(summary(mylm)$coefficients["frame[, 3]", "Estimate"],
+          mylm <- lm(frame[,3] ~ frame[,2], data = frame)
+          add_to_stats <- c(summary(mylm)$coefficients["frame[, 2]", "Estimate"],
                         summary(mylm)$coefficients["(Intercept)", "Estimate"],
                         summary(mylm)$fstatistic["value"],
                         summary(mylm)$fstatistic["numdf"],
@@ -142,6 +139,9 @@ calculate_stats <- function(df, dayrange) {
   # Convert matrix to dataframe
   stats_df <- as.data.frame(stats)
   
+  # Add dayrange suffix on column headers
+  colnames(stats_df) <- paste(colnames(stats_df), dayrange, "DAY_RANGE", sep = '_')
+  
   # Horiontally concat with original df 
   overall_df <- cbind(df, stats_df)
   
@@ -150,7 +150,7 @@ calculate_stats <- function(df, dayrange) {
 }
 
 ## COMMENT out these lines to run the tests
-path = "Shiu_lab/for-others/seth_temp_sensitivity/Final_Data_Serena.csv"
+path = "Shiu_lab/arrhenius-stats/final_data/updated_analysis/Final_Data_SL.csv"
 arrhenius_stats(path)
 
 
